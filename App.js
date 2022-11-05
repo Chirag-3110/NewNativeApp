@@ -3,8 +3,11 @@ import { View ,Text, ScrollView,TouchableOpacity,Modal,TextInput, ActivityIndica
 import Card from "./src/Components/Card";
 import DatePicker from 'react-native-date-picker'
 import styles from "./src/styles";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import uuid from 'react-native-uuid';
 const App=()=>{
   const [todoList,setTodoList]=useState([]);
+  const [userID,setUserID]=useState(null);
   const [showModel,setShowModel]=useState(false);
   const [todoTitle,setTodoTitle]=useState(null);
   const [todoDesc,setTodoDesc]=useState(null);
@@ -16,15 +19,30 @@ const App=()=>{
 
 
   useEffect(()=>{
-    getTodos()
+    const getData = async () => {
+      try {
+        const value = await AsyncStorage.getItem('User_UID')
+        if(value == null) {
+          const uid = uuid.v4(); 
+          await AsyncStorage.setItem('User_UID',uid);
+        }
+        else{
+          getTodos(value)
+          setUserID(value)
+        }
+      } catch(e) {
+        console.log(e)
+      }
+    }
+    getData();
   },[]);
-  
-  const getTodos=()=>{
-    fetch('https://beast-todo-react.herokuapp.com/api/getTodo',)
+  // 192.168.233.30
+  const getTodos=(value)=>{
+
+    fetch(`https://beast-todo-react.herokuapp.com/api/getTodo/${value}`,)
     .then(async(response) =>await response.json())
     .then((data) => {
       setTodoList(data.allTodos)
-      // data.allTodos.forEach(())
     });
   }
 
@@ -44,6 +62,7 @@ const App=()=>{
         Todo_Status:'Pending',
         createdAt:new Date(),
         dueTime:date,
+        userID:userID
       }
       setAddLoading(true)
       fetch("https://beast-todo-react.herokuapp.com/api/create",{
@@ -55,7 +74,7 @@ const App=()=>{
       })
       .then((res)=>res.json())
       .then((data)=>{
-        getTodos();
+        getTodos(userID);
         setShowModel(false);
         alert("Task Added")
         setAddLoading(false);
@@ -83,7 +102,7 @@ const App=()=>{
     .then((res)=>res.json())
     .then((data)=>{
         alert("Task Deleted")
-        getTodos()
+        getTodos(userID)
         setDeleteLoading(false)
     })
     .catch((err)=>console.log(err))
@@ -102,7 +121,7 @@ const App=()=>{
     .then((res)=>res.json())
     .then((data)=>{
         alert("Task Completed");
-        getTodos();
+        getTodos(userID);
     })
     .catch((err)=>console.log(err))
   }
